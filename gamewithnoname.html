@@ -1,12 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D FPS Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+        }
+        #menu, #connectUI, #minimap, #gameUI {
+            position: absolute;
+            color: white;
+        }
+        #menu {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        #menu button {
+            margin: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+        #connectUI {
+            top: 10px;
+            left: 10px;
+        }
+        #minimap {
+            bottom: 10px;
+            left: 10px;
+            width: 100px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.1/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+<div id="menu">
+    <h1>Welcome to Dumb Game by Eden Brophy</h1>
+    <button id="singlePlayerBtn">Single Player</button>
+    <button id="multiPlayerBtn">Multiplayer</button>
+</div>
+
+<div id="connectUI" style="display: none;">
+    <p>Your ID: <span id="myId">Loading...</span></p>
+    <input type="text" id="peerId" placeholder="Enter friend ID">
+    <button onclick="connectToPeer()">Connect</button>
+</div>
+
+<div id="gameUI" style="display: none;">
+    <button id="backBtn">Back</button>
+    <p>Game Starting in <span id="countdown">25</span> seconds...</p>
+</div>
+
+<div id="minimap" style="display: none;"></div>
+
+<audio id="shootSound" src="shoot.mp4"></audio>
+<audio id="hitSound" src="hit.mp4"></audio>
+
 <script>
+// Multiplayer setup
+const peer = new Peer();
+let connections = [];
+let players = {};
+
+peer.on('open', (id) => {
+    document.getElementById('myId').innerText = id;
+    console.log('Connected to PeerJS server with ID:', id);
+});
+
+function connectToPeer() {
+    const peerId = document.getElementById('peerId').value;
+    if (peerId) {
+        const conn = peer.connect(peerId);
+        conn.on('open', () => {
+            connections.push(conn);
+            console.log('Connected to peer:', peerId);
+        });
+        conn.on('data', handleIncomingData);
+    }
+}
+
+peer.on('connection', (conn) => {
+    connections.push(conn);
+    conn.on('data', handleIncomingData);
+});
+
+function handleIncomingData(data) {
+    if (data.type === 'updatePosition') {
+        if (!players[data.id]) {
+            players[data.id] = createPlayer();
+        }
+        players[data.id].position.set(data.x, data.y, data.z);
+    }
+}
+
+function sendData(data) {
+    connections.forEach(conn => conn.send(data));
+}
+
+// Menu Flow Setup
+document.getElementById('singlePlayerBtn').addEventListener('click', () => {
+    startSinglePlayer();
+});
+
+document.getElementById('multiPlayerBtn').addEventListener('click', () => {
+    startMultiplayer();
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    document.getElementById('gameUI').style.display = 'none';
+    document.getElementById('menu').style.display = 'block';
+    resetGame();
+});
+
+// Game setup for Single Player
 let scene, camera, renderer, controls;
 let player, terrain;
 let powerups = [];
 let bombs = [];
 
-// Function to create the terrain, powerups, and bombs
 function generateGameAssets() {
-    // Generate Terrain
     terrain = [];
     for (let x = -25; x < 25; x++) {
         for (let z = -25; z < 25; z++) {
@@ -22,7 +147,6 @@ function generateGameAssets() {
         }
     }
 
-    // Generate Powerups and Bombs
     for (let i = 0; i < 5; i++) {
         let powerup = createItem('powerup');
         scene.add(powerup);
@@ -34,7 +158,6 @@ function generateGameAssets() {
     }
 }
 
-// Function to create powerups and bombs
 function createItem(type) {
     const geometry = new THREE.SphereGeometry(1);
     const material = new THREE.MeshStandardMaterial({ color: type === 'powerup' ? 0xFFFF00 : 0xFF0000 });
@@ -44,7 +167,6 @@ function createItem(type) {
     return item;
 }
 
-// Player creation for single-player mode
 function createPlayer() {
     const geometry = new THREE.BoxGeometry(1, 2, 1);
     const material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
@@ -53,7 +175,7 @@ function createPlayer() {
     scene.add(player);
 }
 
-// Setup the scene, camera, renderer, and controls
+// Setup for game
 function setupGame() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -61,28 +183,55 @@ function setupGame() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Pointer Lock Controls for the camera
     controls = new THREE.PointerLockControls(camera, document.body);
     document.body.addEventListener('click', () => controls.lock());
 
-    createPlayer(); // Create player
-    generateGameAssets(); // Generate terrain, powerups, and bombs
-
-    animate(); // Start animation loop
+    createPlayer();
+    generateGameAssets();
+    animate();
 }
 
-// Animate function to continuously render the game
 function animate() {
     requestAnimationFrame(animate);
-
-    // Update the player and camera
-    if (controls.isLocked) {
-        // Add player movement code here if necessary
-    }
-
     renderer.render(scene, camera);
 }
 
-// Start the game setup
-setupGame();
+function startSinglePlayer() {
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('gameUI').style.display = 'block';
+    setupGame();
+}
+
+function startMultiplayer() {
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('connectUI').style.display = 'block';
+}
+
+// Reset the game when going back
+function resetGame() {
+    scene.clear();
+    players = {};
+    powerups = [];
+    bombs = [];
+}
+
+// Countdown Timer for Round Start
+let countdownTimer;
+function startCountdown() {
+    let count = 25;
+    document.getElementById('countdown').innerText = count;
+
+    countdownTimer = setInterval(() => {
+        count--;
+        document.getElementById('countdown').innerText = count;
+        if (count === 0) {
+            clearInterval(countdownTimer);
+            // Proceed to the game
+        }
+    }, 1000);
+}
+
 </script>
+
+</body>
+</html>
