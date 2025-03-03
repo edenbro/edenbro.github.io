@@ -1,0 +1,88 @@
+<script>
+let scene, camera, renderer, controls;
+let player, terrain;
+let powerups = [];
+let bombs = [];
+
+// Function to create the terrain, powerups, and bombs
+function generateGameAssets() {
+    // Generate Terrain
+    terrain = [];
+    for (let x = -25; x < 25; x++) {
+        for (let z = -25; z < 25; z++) {
+            let height = Math.floor(Math.random() * 3) + 1;
+            for (let y = 0; y < height; y++) {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshStandardMaterial({ color: 0x808080 });
+                const block = new THREE.Mesh(geometry, material);
+                block.position.set(x, y, z);
+                scene.add(block);
+                terrain.push(block);
+            }
+        }
+    }
+
+    // Generate Powerups and Bombs
+    for (let i = 0; i < 5; i++) {
+        let powerup = createItem('powerup');
+        scene.add(powerup);
+        powerups.push(powerup);
+
+        let bomb = createItem('bomb');
+        scene.add(bomb);
+        bombs.push(bomb);
+    }
+}
+
+// Function to create powerups and bombs
+function createItem(type) {
+    const geometry = new THREE.SphereGeometry(1);
+    const material = new THREE.MeshStandardMaterial({ color: type === 'powerup' ? 0xFFFF00 : 0xFF0000 });
+    const item = new THREE.Mesh(geometry, material);
+    item.position.set(Math.random() * 50 - 25, 1, Math.random() * 50 - 25);
+    item.type = type;
+    return item;
+}
+
+// Player creation for single-player mode
+function createPlayer() {
+    const geometry = new THREE.BoxGeometry(1, 2, 1);
+    const material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    player = new THREE.Mesh(geometry, material);
+    player.position.set(0, 2, 0);
+    scene.add(player);
+}
+
+// Setup the scene, camera, renderer, and controls
+function setupGame() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Pointer Lock Controls for the camera
+    controls = new THREE.PointerLockControls(camera, document.body);
+    document.body.addEventListener('click', () => controls.lock());
+
+    createPlayer(); // Create player
+    generateGameAssets(); // Generate terrain, powerups, and bombs
+
+    animate(); // Start animation loop
+}
+
+// Animate function to continuously render the game
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Update the player and camera
+    if (controls.isLocked) {
+        // Add player movement code here if necessary
+    }
+
+    renderer.render(scene, camera);
+}
+
+// Start the game setup
+setupGame();
+</script>
